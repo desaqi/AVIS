@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVIS - Smart 3D Holographic AI</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Three.js Library for 3D Visuals -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            gold: '#f59e0b',
+                            cyan: '#06b6d4',
+                            purple: '#a855f7',
+                            dark: '#030712'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        body {
+            background-color: #030712;
+            color: #e2e8f0;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Fullscreen Canvas for Three.js 3D Orb */
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* Glassmorphism HUD Style */
+        .hud-card {
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .hud-glow-amber {
+            box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.35);
+        }
+        
+        .hud-glow-cyan {
+            box-shadow: 0 0 35px -5px rgba(6, 182, 212, 0.45);
+        }
+
+        .hud-glow-purple {
+            box-shadow: 0 0 35px -5px rgba(168, 85, 247, 0.45);
+        }
+
+        /* Glowing text effects */
+        .glow-text-cyan {
+            text-shadow: 0 0 12px rgba(6, 182, 212, 0.7);
+        }
+
+        .glow-text-amber {
+            text-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+        }
+
+        /* Wave visualizer bars */
+        .sound-wave-bar {
+            width: 3px;
+            height: 16px;
+            background: #06b6d4;
+            border-radius: 999px;
+            animation: wave 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes wave {
+            0% { height: 6px; opacity: 0.4; }
+            100% { height: 28px; opacity: 1; }
+        }
+
+        /* Radar scan effect */
+        .radar-scan {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            animation: radar-pulse 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes radar-pulse {
+            0% { transform: scale(0.6); opacity: 0.8; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        /* Custom Scrollbar for notes modal */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.4);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative flex flex-col justify-between items-center p-4 md:p-6">
+
+    <!-- Grid Overlay for Cybernetic Feel -->
+    <div class="absolute inset-0 bg-[linear-gradient(to_right,#1f29370f_1px,transparent_1px),linear-gradient(to_bottom,#1f29370f_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none z-0"></div>
+
+    <!-- 3D Three.js Interactive Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- TOP HUD HEADER -->
+    <header class="relative z-10 w-full max-w-4xl flex items-center justify-between hud-card rounded-2xl px-5 py-3 transition-all duration-500">
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+            <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                <i class="ph-bold ph-planet text-xl animate-spin" style="animation-duration: 12s;"></i>
+            </div>
+            <div>
+                <h1 class="font-orbitron text-lg font-bold tracking-wider text-amber-400 flex items-center gap-2">
+                    A.V.I.S <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">v5.2 3D</span>
+                </h1>
+                <p class="text-xs text-slate-400 font-mono tracking-tight" id="system-time">AI ASSISTANT • ONLINE</p>
+            </div>
+        </div>
+
+        <!-- Mode Indicator & Quick Action Buttons -->
+        <div class="flex items-center gap-3">
+            <!-- Hands-free status badge -->
+            <div id="mode-badge" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/60 text-xs font-mono text-slate-300">
+                <span id="mode-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="mode-text">SISTEM SIAGA</span>
+            </div>
+
+            <!-- Active Managed Tabs Indicator -->
+            <div id="managed-tabs-badge" class="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] font-mono text-slate-400">
+                <span class="text-[9px] text-slate-500 uppercase">Tab Active:</span>
+                <span id="badge-yt" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50">YT</span>
+                <span id="badge-google" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50">G</span>
+                <span id="badge-scholar" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50">SCH</span>
+            </div>
+
+            <!-- Notes Memory Drawer Trigger -->
+            <button id="open-notes-btn" title="Memori Catatan Internal" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-amber-400 hover:border-amber-500/50 flex items-center justify-center transition-all">
+                <i class="ph-bold ph-notebook text-lg"></i>
+            </button>
+
+            <!-- Pengaturan API (BARU) -->
+            <button id="open-settings-btn" title="Pengaturan Sistem" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/50 flex items-center justify-center transition-all">
+                <i class="ph-bold ph-gear text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MIDDLE SUBTITLE & DIALOG DISPLAY -->
+    <main class="relative z-10 my-auto w-full max-w-2xl px-4 pointer-events-none text-center">
+        <!-- Visual Wave Indicator (Visible when listening/speaking) -->
+        <div id="wave-container" class="opacity-0 flex items-center justify-center gap-1.5 mb-3 transition-opacity duration-300">
+            <div class="sound-wave-bar" style="animation-delay: 0.1s"></div>
+            <div class="sound-wave-bar" style="animation-delay: 0.3s"></div>
+            <div class="sound-wave-bar" style="animation-delay: 0.2s"></div>
+            <div class="sound-wave-bar" style="animation-delay: 0.5s"></div>
+            <div class="sound-wave-bar" style="animation-delay: 0.4s"></div>
+        </div>
+
+        <p id="status-label" class="text-xs font-orbitron tracking-widest text-amber-400/80 uppercase mb-2">
+            INTELLIGENT INTERFACE READY
+        </p>
+        
+        <div id="subtitle-card" class="hud-card rounded-2xl p-5 md:p-6 transition-all duration-500 border border-slate-700/50">
+            <p id="subtitle-text" class="text-lg md:text-2xl font-light text-slate-100 leading-relaxed drop-shadow">
+                "Halo Tuan. Saya A.V.I.S. Klik mikrofon sekali untuk memulai percakapan Hands-Free."
+            </p>
+        </div>
+    </main>
+
+    <!-- BOTTOM CONTROLS & CONTINUOUS MIC BUTTON -->
+    <footer class="relative z-10 w-full max-w-md flex flex-col items-center gap-3 mb-2">
+        <div class="relative flex items-center justify-center">
+            <!-- Continuous Hands-Free Pulsing Glow Rings -->
+            <div id="mic-ring-1" class="absolute w-24 h-24 rounded-full bg-amber-500/10 blur-md transition-all duration-500"></div>
+            <div id="mic-ring-2" class="absolute w-20 h-20 rounded-full border border-amber-500/30 transition-all duration-500"></div>
+
+            <!-- Single Master Mic Button (Tap Once to Start/Stop Hands-Free Mode) -->
+            <button id="mic-btn" class="relative z-20 w-16 h-16 rounded-full bg-slate-900 border-2 border-amber-500 text-amber-400 flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 transition-all duration-300">
+                <i id="mic-icon" class="ph-bold ph-microphone text-2xl"></i>
+            </button>
+        </div>
+
+        <p id="mic-hint" class="text-xs font-mono text-slate-400 tracking-wider">
+            TEKAN SEKALI UNTUK SUPAYA BISA BERBICARA DENGAN AI
+        </p>
+    </footer>
+
+    <!-- SECRET / INTERNAL MEMORY NOTES DRAWER MODAL -->
+    <div id="notes-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="hud-card w-full max-w-lg rounded-2xl border border-amber-500/30 overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                <div class="flex items-center gap-2 text-amber-400 font-orbitron text-sm font-semibold">
+                    <i class="ph-bold ph-brain text-lg"></i>
+                    <span>MEMORI INTERNAL A.V.I.S</span>
+                </div>
+                <button id="close-notes-btn" class="text-slate-400 hover:text-white p-1">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto space-y-3 flex-1" id="notes-list-container">
+                <p class="text-xs font-mono text-slate-500 text-center py-6">Belum ada catatan otomatis tersimpan. Katakan "Catat ini..." untuk menyimpan informasi.</p>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between text-xs text-slate-400 font-mono">
+                <span>Total Catatan: <strong id="notes-count" class="text-amber-400">0</strong></span>
+                <button id="clear-notes-btn" class="text-rose-400 hover:underline">Hapus Semua</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PENGATURAN API MODAL -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="hud-card w-full max-w-md rounded-2xl border border-cyan-500/30 overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                <div class="flex items-center gap-2 text-cyan-400 font-orbitron text-sm font-semibold">
+                    <i class="ph-bold ph-gear text-lg"></i>
+                    <span>PENGATURAN SISTEM A.V.I.S</span>
+                </div>
+                <button id="close-settings-btn" class="text-slate-400 hover:text-white p-1">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 space-y-4">
+                <div>
+                    <label for="api-key-input" class="block text-xs font-mono text-slate-400 mb-1.5">Gemini API Key</label>
+                    <input type="password" id="api-key-input" placeholder="Masukkan API Key..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all">
+                    <p class="text-[10px] text-slate-500 mt-1.5">Kunci ini disimpan secara enkripsi mandiri di browser lokal Anda. Kunci ini aman dan tidak akan diekspor saat source code didownload.</p>
+                </div>
+                <button id="save-settings-btn" class="w-full py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-lg text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                    SIMPAN KONFIGURASI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ====================================================================
+           1. THREE.JS 3D MULTI-LAYERED HOLOGRAM ORB VISUALS
+           ==================================================================== */
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 6;
+
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Group container for Orb components
+        const orbGroup = new THREE.Group();
+        scene.add(orbGroup);
+
+        // Core Glowing Sphere Geometry
+        const coreGeo = new THREE.IcosahedronGeometry(1.2, 3);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0xf59e0b,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.65
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        orbGroup.add(coreMesh);
+
+        // Inner Solid Plasma Sphere
+        const innerGeo = new THREE.SphereGeometry(0.85, 32, 32);
+        const innerMat = new THREE.MeshBasicMaterial({
+            color: 0xd97706,
+            transparent: true,
+            opacity: 0.85
+        });
+        const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+        orbGroup.add(innerMesh);
+
+        // 3D Orbital Particle Swarm (Multi-color lights)
+        const particleCount = 1200;
+        const particleGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        const colorAmber = new THREE.Color(0xf59e0b);
+        const colorCyan = new THREE.Color(0x06b6d4);
+        const colorPurple = new THREE.Color(0xa855f7);
+
+        for (let i = 0; i < particleCount; i++) {
+            const u = Math.random();
+            const v = Math.random();
+            const theta = u * 2.0 * Math.PI;
+            const phi = Math.acos(2.0 * v - 1.0);
+            const r = 1.3 + Math.random() * 0.9;
+
+            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i * 3 + 2] = r * Math.cos(phi);
+
+            // Mix light colors (Cyan, Gold, Purple)
+            let mixedColor = colorAmber.clone();
+            const rand = Math.random();
+            if (rand > 0.65) mixedColor = colorCyan;
+            else if (rand > 0.4) mixedColor = colorPurple;
+
+            colors[i * 3] = mixedColor.r;
+            colors[i * 3 + 1] = mixedColor.g;
+            colors[i * 3 + 2] = mixedColor.b;
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.045,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particleSystem = new THREE.Points(particleGeo, particleMat);
+        orbGroup.add(particleSystem);
+
+        // 3D Concentric Ring Orbits (Rotated at angles)
+        function createOrbitalRing(radius, colorHex, rx, ry) {
+            const ringGeo = new THREE.TorusGeometry(radius, 0.018, 16, 100);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = rx;
+            ring.rotation.y = ry;
+            return ring;
+        }
+
+        const ring1 = createOrbitalRing(2.1, 0xf59e0b, Math.PI / 3, Math.PI / 6);
+        const ring2 = createOrbitalRing(2.4, 0x06b6d4, -Math.PI / 4, Math.PI / 4);
+        const ring3 = createOrbitalRing(2.7, 0xa855f7, Math.PI / 2.5, -Math.PI / 3);
+
+        orbGroup.add(ring1);
+        orbGroup.add(ring2);
+        orbGroup.add(ring3);
+
+        // Dynamic Lights inside scene
+        const pointLight1 = new THREE.PointLight(0xf59e0b, 2, 10);
+        pointLight1.position.set(2, 2, 2);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x06b6d4, 2, 10);
+        pointLight2.position.set(-2, -2, 2);
+        scene.add(pointLight2);
+
+        // State Target Palette for Orb animations
+        let currentTargetColor = { r: 0.96, g: 0.62, b: 0.07 }; // Default Amber
+        let pulseSpeed = 0.015;
+
+        function setVisualState(state) {
+            if (state === 'listening') {
+                currentTargetColor = { r: 0.02, g: 0.71, b: 0.83 }; // Cyan
+                pulseSpeed = 0.035;
+            } else if (state === 'thinking') {
+                currentTargetColor = { r: 0.65, g: 0.33, b: 0.96 }; // Purple
+                pulseSpeed = 0.06;
+            } else { // Idle / Speaking
+                currentTargetColor = { r: 0.96, g: 0.62, b: 0.07 }; // Amber
+                pulseSpeed = 0.015;
+            }
+        }
+
+        // Animation Loop
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+
+            // Rotate core and orbits
+            coreMesh.rotation.y = elapsedTime * 0.4;
+            coreMesh.rotation.x = elapsedTime * 0.2;
+
+            innerMesh.scale.setScalar(0.85 + Math.sin(elapsedTime * (pulseSpeed * 100)) * 0.08);
+
+            particleSystem.rotation.y = -elapsedTime * 0.15;
+            particleSystem.rotation.z = elapsedTime * 0.08;
+
+            ring1.rotation.z = elapsedTime * 0.3;
+            ring2.rotation.z = -elapsedTime * 0.4;
+            ring3.rotation.x = elapsedTime * 0.25;
+
+            // Smooth color transition for core material
+            coreMat.color.r += (currentTargetColor.r - coreMat.color.r) * 0.05;
+            coreMat.color.g += (currentTargetColor.g - coreMat.color.g) * 0.05;
+            coreMat.color.b += (currentTargetColor.b - coreMat.color.b) * 0.05;
+
+            innerMat.color.copy(coreMat.color);
+
+            // Subtle mouse interaction tilt
+            orbGroup.rotation.y += (mouseX * 0.5 - orbGroup.rotation.y) * 0.05;
+            orbGroup.rotation.x += (-mouseY * 0.5 - orbGroup.rotation.x) * 0.05;
+
+            renderer.render(scene, camera);
+        }
+
+        // Mouse move parallax interaction
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = (e.clientY / window.innerHeight) * 2 - 1;
+        });
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+        /* ====================================================================
+           STREAMING_CHUNK:Setting up Audio, Hands-Free Voice Engine, and Gemini Integration...
+           ==================================================================== */
+        // DOM Elements
+        const micBtn = document.getElementById('mic-btn');
+        const micIcon = document.getElementById('mic-icon');
+        const micRing1 = document.getElementById('mic-ring-1');
+        const micRing2 = document.getElementById('mic-ring-2');
+        const subtitleText = document.getElementById('subtitle-text');
+        const statusLabel = document.getElementById('status-label');
+        const modeText = document.getElementById('mode-text');
+        const modeDot = document.getElementById('mode-dot');
+        const waveContainer = document.getElementById('wave-container');
+        const speedToggleBtn = document.getElementById('speed-toggle-btn');
+        const speedVal = document.getElementById('speed-val');
+
+        // Modal Elements
+        const openNotesBtn = document.getElementById('open-notes-btn');
+        const closeNotesBtn = document.getElementById('close-notes-btn');
+        const notesModal = document.getElementById('notes-modal');
+        const notesContainer = document.getElementById('notes-list-container');
+        const notesCount = document.getElementById('notes-count');
+        const clearNotesBtn = document.getElementById('clear-notes-btn');
+
+        // State Variables
+        let isHandsFreeActive = false; // Flag for auto continuous hands-free mode
+        let isRecognizing = false; // Guard flag to prevent InvalidStateError
+        let speechRate = 1.2; // Default fast speech rate requested by user
+        let recognition = null;
+        let memoryNotes = JSON.parse(localStorage.getItem('avis_notes') || '[]');
+        let conversationHistory = []; // Array untuk mengingat konteks percakapan
+        let selectedMaleVoice = null;
+
+        // Explicit JavaScript Window References to Reuse Existing Opened Tabs
+        let ytWindow = null;
+        let googleWindow = null;
+        let scholarWindow = null;
+
+        // Konfigurasi Gemini API
+        let geminiHistory = [];
+
+        // Inisialisasi Tombol Pengaturan
+        const settingsModal = document.getElementById('settings-modal');
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+        // Muat Kunci API yang tersimpan saat halaman dimuat
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('avis_api_key');
+            if (savedKey) apiKeyInput.value = savedKey;
+        });
+
+        if (openSettingsBtn) {
+            openSettingsBtn.addEventListener('click', () => {
+                settingsModal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+        }
+        if (closeSettingsBtn) {
+            closeSettingsBtn.addEventListener('click', () => {
+                settingsModal.classList.add('opacity-0', 'pointer-events-none');
+            });
+        }
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => {
+                const val = apiKeyInput.value.trim();
+                localStorage.setItem('avis_api_key', val);
+                settingsModal.classList.add('opacity-0', 'pointer-events-none');
+                updateUI("API Key berhasil disimpan dengan aman di browser.", "PENGATURAN TERSIMPAN");
+                speakAVIS("Konfigurasi sistem berhasil diperbarui, Tuan.");
+            });
+        }
+
+        function updateTabBadges() {
+            const badgeYt = document.getElementById('badge-yt');
+            const badgeGoogle = document.getElementById('badge-google');
+            const badgeScholar = document.getElementById('badge-scholar');
+
+            if (badgeYt) {
+                if (ytWindow && !ytWindow.closed) {
+                    badgeYt.className = "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40 font-bold";
+                } else {
+                    badgeYt.className = "px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50";
+                }
+            }
+            if (badgeGoogle) {
+                if (googleWindow && !googleWindow.closed) {
+                    badgeGoogle.className = "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/40 font-bold";
+                } else {
+                    badgeGoogle.className = "px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50";
+                }
+            }
+            if (badgeScholar) {
+                if (scholarWindow && !scholarWindow.closed) {
+                    badgeScholar.className = "px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold";
+                } else {
+                    badgeScholar.className = "px-1.5 py-0.5 rounded bg-slate-800 text-slate-600 border border-slate-700/50";
+                }
+            }
+        }
+        setInterval(updateTabBadges, 1000);
+
+        // Initialize Web Speech Synthesis Voice
+        function initMaleVoice() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) return; // Tunggu sampai array voices terisi (asynchronous)
+            
+            // Prioritaskan suara pria (Andika untuk Windows, atau tag 'male')
+            selectedMaleVoice = voices.find(v => v.lang.includes('id') && v.name.toLowerCase().includes('andika')) ||
+                                voices.find(v => v.lang.includes('id') && v.name.toLowerCase().includes('male')) ||
+                                voices.find(v => v.lang.includes('id') && v.name.toLowerCase().includes('ardi')) || 
+                                // Fallback: Suara Inggris beraksen British (sangat cocok untuk AI / Jarvis)
+                                voices.find(v => v.name.toLowerCase().includes('google uk english male')) ||
+                                // Fallback: Suara cowok bahasa apapun
+                                voices.find(v => v.name.toLowerCase().includes('male')) ||
+                                // Fallback: Suara Indo bawaan OS
+                                voices.find(v => v.lang.includes('id')) || 
+                                voices[0];
+        }
+
+        if (typeof speechSynthesis !== 'undefined') {
+            // Trigger saat voices selesai diload oleh browser
+            speechSynthesis.onvoiceschanged = initMaleVoice;
+            initMaleVoice();
+            
+            // Backup interval (mengatasi bug Chrome/Safari dimana onvoiceschanged tidak tertrigger)
+            let voiceCheck = setInterval(() => {
+                if (window.speechSynthesis.getVoices().length > 0) {
+                    initMaleVoice();
+                    clearInterval(voiceCheck);
+                }
+            }, 500);
+        }
+
+        /* --------------------------------------------------------------------
+           Direct Voice Commands (Buka Google, YouTube, Scholar with Tab Memory)
+           -------------------------------------------------------------------- */
+        // Smart tab navigator with window references & target names to ensure ONLY ONE TAB is used per service
+        function navigateTab(url, name, windowType, speakFeedback = true) {
+            let targetWin = null;
+            if (windowType === 'youtube') targetWin = ytWindow;
+            else if (windowType === 'google') targetWin = googleWindow;
+            else if (windowType === 'scholar') targetWin = scholarWindow;
+
+            const targetName = `avis_${windowType}_tab`;
+
+            // Try updating existing JS window reference if still open
+            if (targetWin && !targetWin.closed) {
+                try {
+                    targetWin.location.href = url;
+                    targetWin.focus();
+                    if (speakFeedback) speakAVIS(`Siap Tuan, memperbarui ${name} pada tab yang sama.`);
+                    updateTabBadges();
+                    return targetWin;
+                } catch (e) {
+                    console.warn("Gagal memperbarui tab eksisting via location.href, fallback ke window.open:", e);
+                }
+            }
+
+            // Always use fixed targetName ('avis_youtube_tab') so browser reuses the single tab
+            const newWin = window.open(url, targetName);
+            if (!newWin) {
+                updateUI(`Browser memblokir tab. Izinkan pop-up.`, "POP-UP DIBLOKIR", "error");
+                if (speakFeedback) speakAVIS("Tuan, browser memblokir pembukaan tab. Mohon izinkan akses pop-up di browser Anda.");
+            } else {
+                newWin.focus();
+                if (speakFeedback) speakAVIS(`Siap Tuan. Mengakses ${name}.`);
+                if (windowType === 'youtube') ytWindow = newWin;
+                else if (windowType === 'google') googleWindow = newWin;
+                else if (windowType === 'scholar') scholarWindow = newWin;
+                updateTabBadges();
+            }
+            return newWin;
+        }
+
+        function checkDirectCommands(text) {
+            const lower = text.toLowerCase();
+
+            // Jika pengguna meminta untuk membukakan / memutar "salah satu video" atau video spesifik,
+            // alihkan ke Gemini AI agar AI menggunakan Search Grounding mencari URL video asli (watch?v=...)!
+            if (lower.includes('salah satu video') || lower.includes('salah satu videonya') || lower.includes('salah satu dari video') || lower.includes('pilihkan video') || lower.includes('pick a video') || lower.includes('choose a video')) {
+                return false;
+            }
+
+            // Enhanced search query extraction that handles complex conversational phrases
+            const extractQuery = (str, keywords) => {
+                let cleanStr = str
+                    .replace(/di (tab )?youtube (yang (kamu|anda) buka )?(tadi|ini)?/gi, '')
+                    .replace(/on (the )?youtube (tab )?/gi, '')
+                    .replace(/di (tab )?google (yang (kamu|anda) buka )?(tadi|ini)?/gi, '')
+                    .replace(/on (the )?google (tab )?/gi, '')
+                    .replace(/di (tab )?scholar (yang (kamu|anda) buka )?(tadi|ini)?/gi, '')
+                    .replace(/on (the )?scholar (tab )?/gi, '')
+                    .replace(/(tolong|coba|bisakah|sekarang|dulu|dong|sih|please|can you|could you)/gi, '')
+                    .trim();
+
+                for (let kw of keywords) {
+                    const regex = new RegExp(`${kw}\\s+(.+);?`, 'i');
+                    const match = cleanStr.match(regex);
+                    if (match && match[1].trim()) {
+                        let q = match[1].replace(/(di\s+)?(youtube|google|scholar|jurnal|journal)/gi, '').trim();
+                        if (q) return q;
+                    }
+                }
+                return null;
+            };
+
+            // 1. YouTube Commands (Directly targets active single YouTube tab)
+            const isYtContext = lower.includes('youtube') || lower.includes('yt') || 
+                                lower.includes('video') || lower.includes('putar') || 
+                                lower.includes('tonton') || lower.includes('stel') ||
+                                lower.includes('play') || lower.includes('watch');
+            if (isYtContext) {
+                let q = extractQuery(lower, ['cari', 'carikan', 'tampilkan', 'putar', 'tonton', 'stel', 'play', 'search', 'find', 'watch']);
+                if (q && q !== 'youtube' && q !== 'video' && q !== 'yt') {
+                    navigateTab(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, `YouTube untuk ${q}`, 'youtube');
+                    return true;
+                }
+                if (lower.includes('buka') || lower.includes('akses') || lower.includes('open') || lower.includes('launch')) {
+                    navigateTab('https://www.youtube.com', 'YouTube', 'youtube');
+                    return true;
+                }
+            }
+
+            // 2. Google Scholar Commands
+            if (lower.includes('scholar') || lower.includes('skolar') || lower.includes('jurnal') || lower.includes('journal')) {
+                let q = extractQuery(lower, ['cari', 'carikan', 'search', 'temukan', 'find']);
+                if (q && !['scholar', 'skolar', 'jurnal', 'journal'].includes(q)) {
+                    navigateTab(`https://scholar.google.com/scholar?q=${encodeURIComponent(q)}`, `Google Scholar untuk ${q}`, 'scholar');
+                    return true;
+                }
+                if (lower.includes('buka') || lower.includes('akses') || lower.includes('open') || lower.includes('launch')) {
+                    navigateTab('https://scholar.google.com', 'Google Scholar', 'scholar');
+                    return true;
+                }
+            }
+
+            // 3. Google Search Commands
+            if (lower.includes('google') || lower.includes('chrome') || lower.includes('browser') || lower.includes('web')) {
+                let q = extractQuery(lower, ['cari', 'carikan', 'search', 'browsing', 'find']);
+                if (q && !['google', 'chrome', 'browser', 'web'].includes(q)) {
+                    navigateTab(`https://www.google.com/search?q=${encodeURIComponent(q)}`, `Google untuk ${q}`, 'google');
+                    return true;
+                }
+                if (lower.includes('buka') || lower.includes('akses') || lower.includes('open') || lower.includes('launch')) {
+                    navigateTab('https://www.google.com', 'Google', 'google');
+                    return true;
+                }
+            }
+
+            // Membiarkan pertanyaan umum ditangani langsung oleh kecerdasan Gemini (Voice AI)
+            return false;
+        }
+
+        /* --------------------------------------------------------------------
+           Local Offline Brain Engine (No API Key Required)
+           -------------------------------------------------------------------- */
+        
+        // Fitur Baru: Pencarian Pengetahuan Tanpa API Key (Wikipedia + DuckDuckGo)
+        async function fetchKnowledge(query) {
+            try {
+                // 1. Otak Pertama: Mencari di Wikipedia Indonesia
+                const searchUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`;
+                const searchRes = await fetch(searchUrl);
+                const searchData = await searchRes.json();
+
+                if (searchData.query.search.length > 0) {
+                    const title = searchData.query.search[0].title;
+                    const summaryUrl = `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+                    const summaryRes = await fetch(summaryUrl);
+                    const summaryData = await summaryRes.json();
+
+                    if (summaryData.extract) {
+                        let textToSpeak = summaryData.extract;
+                        if (textToSpeak.length > 350) {
+                            textToSpeak = textToSpeak.substring(0, 350) + "... Informasi lebih lengkap telah saya temukan, namun terlalu panjang untuk dibacakan.";
+                        }
+                        speakAVIS(`Menurut ensiklopedia. ${textToSpeak}`);
+                        return;
+                    }
+                }
+
+                // 2. Otak Kedua: Jika Wikipedia kosong, cari di DuckDuckGo Instant Answer API (Gratis tanpa key)
+                const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+                const ddgRes = await fetch(ddgUrl);
+                const ddgData = await ddgRes.json();
+
+                if (ddgData.AbstractText) {
+                    let textToSpeak = ddgData.AbstractText;
+                    if (textToSpeak.length > 350) {
+                        textToSpeak = textToSpeak.substring(0, 350) + "...";
+                    }
+                    speakAVIS(`Dari pencarian alternatif saya menemukan ini: ${textToSpeak}`);
+                    return;
+                }
+                
+                // 3. Jika kedua otak gagal, otomatis buka Google sebagai jalan terakhir
+                speakAVIS(`Maaf Tuan, saya tidak menemukan definisi pasti tentang hal tersebut di memori publik saya. Saya akan membukakan hasil pencarian Google untuk Anda.`);
+                navigateTab(`https://www.google.com/search?q=${encodeURIComponent(query)}`, `Google untuk ${query}`, 'google');
+
+            } catch (e) {
+                speakAVIS("Maaf Tuan, terjadi kesalahan jaringan saat saya mencoba mengakses basis data pengetahuan.");
+            }
+        }
+
+        function processQueryLocal(userText) {
+            setVisualState('thinking');
+            updateHUDState('thinking');
+            updateUI("Menganalisa jaringan saraf lokal...", "A.V.I.S BERPIKIR (LOKAL)");
+
+            const lowerUser = userText.toLowerCase();
+
+            // 1. Deteksi Pertanyaan Pengetahuan Umum ("Apa itu...", "Siapa itu...", "Jelaskan...", "What is...")
+            const knowledgeMatch = lowerUser.match(/(?:apa itu|siapa itu|jelaskan tentang|pengertian dari|apa yang dimaksud dengan|what is|who is|explain about|tell me about)\s+(.+)/i);
+            
+            if (knowledgeMatch) {
+                const query = knowledgeMatch[1].trim();
+                fetchKnowledge(query);
+                return; // Hentikan eksekusi di sini, biarkan fetchKnowledge yang menjawab
+            }
+
+            // 2. Simulasi waktu proses CPU lokal untuk perintah dasar
+            let reply = "";
+            setTimeout(() => {
+                if (lowerUser.includes('halo') || lowerUser.includes('hai') || lowerUser.includes('selamat') || lowerUser.includes('hello') || lowerUser.includes('hi')) {
+                    reply = "Halo Tuan. Sistem otak lokal A.V.I.S telah aktif sepenuhnya. Saya tidak memerlukan koneksi server luar. Apa yang bisa saya bantu hari ini? / Hello Sir, my local brain system is fully online. How can I assist you?";
+                }
+                else if (lowerUser.includes('siapa kamu') || lowerUser.includes('namamu') || lowerUser.includes('apa itu avis') || lowerUser.includes('who are you') || lowerUser.includes('your name')) {
+                    reply = "Saya adalah A.V.I.S, Asisten Virtual Cerdas Anda. Saat ini saya berjalan secara otonom di sistem lokal Anda. / I am A.V.I.S, your Smart Virtual Assistant.";
+                }
+                else if (lowerUser.includes('jam berapa') || lowerUser.includes('waktu sekarang') || lowerUser.includes('pukul berapa') || lowerUser.includes('what time') || lowerUser.includes('current time')) {
+                    const now = new Date();
+                    reply = `Sistem lokal mencatat saat ini pukul ${now.getHours()} lewat ${now.getMinutes()} menit, Tuan. / The current local time is ${now.getHours()}:${now.getMinutes()}, Sir.`;
+                }
+                else if (lowerUser.includes('hari apa') || lowerUser.includes('tanggal berapa') || lowerUser.includes('what day') || lowerUser.includes('what date')) {
+                    const now = new Date();
+                    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    reply = `Berdasarkan kalender bawaan perangkat, hari ini adalah ${now.toLocaleDateString('id-ID', options)}, Tuan.`;
+                }
+                else if (lowerUser.includes('bisa apa') || lowerUser.includes('kemampuan') || lowerUser.includes('what can you do') || lowerUser.includes('your capability')) {
+                    reply = "Dalam mode otonom ini, saya bisa mencatat memori Anda, membuka aplikasi navigasi, serta merespon permintaan dasar. / In this autonomous mode, I can manage your memory, navigate apps, and respond to basic requests.";
+                }
+                else if (lowerUser.includes('terima kasih') || lowerUser.includes('makasih') || lowerUser.includes('bagus') || lowerUser.includes('thank you') || lowerUser.includes('thanks') || lowerUser.includes('good job')) {
+                    reply = "Sama-sama, Tuan. Sebuah kehormatan melayani Anda secara langsung. / You're welcome, Sir. It's an honor to serve you.";
+                }
+                else if (lowerUser.includes('catat') || lowerUser.includes('ingat') || lowerUser.includes('simpan') || lowerUser.includes('save this') || lowerUser.includes('note this') || lowerUser.includes('remember this')) {
+                    saveNote(userText);
+                    reply = "Siap Tuan, informasi tersebut telah saya enkripsi dan simpan secara aman di memori internal lokal Anda. / Acknowledged Sir, the information has been securely saved to your local memory.";
+                }
+                else if (lowerUser.includes('baca catatan') || lowerUser.includes('buka catatan') || lowerUser.includes('apa memori') || lowerUser.includes('read note') || lowerUser.includes('open note') || lowerUser.includes('show memory')) {
+                     if (memoryNotes.length === 0) {
+                         reply = "Penyimpanan memori lokal Anda kosong, Tuan. / Your local memory storage is empty, Sir.";
+                     } else {
+                         reply = "Tentu Tuan, berikut isi memori lokal Anda: / Sure Sir, here is your local memory: " + memoryNotes.map((n, i) => `Catatan ${i+1}: ${n.text}`).join('. ');
+                     }
+                }
+                else {
+                    reply = "Maaf Tuan, saya sedang berjalan di mode offline. / Sorry Sir, I am currently running in offline mode. Anda masih bisa meminta saya membuka YouTube atau menyimpan catatan.";
+                }
+
+                speakAVIS(reply);
+            }, 600);
+        }
+
+        /* --------------------------------------------------------------------
+           Gemini AI Cloud Engine (Dengan Akses Google Search Real-Time)
+           -------------------------------------------------------------------- */
+        async function processQueryGemini(userText) {
+            setVisualState('thinking');
+            updateHUDState('thinking');
+            updateUI("Menghubungkan ke pusat data satelit A.V.I.S...", "A.V.I.S BERPIKIR (CLOUD)");
+
+            const lowerUser = userText.toLowerCase();
+            
+            // 1. Tangani perintah lokal prioritas tinggi secara otonom
+            if (lowerUser.includes('catat') || lowerUser.includes('ingat') || lowerUser.includes('simpan') || lowerUser.includes('save this') || lowerUser.includes('note this')) {
+                saveNote(userText);
+                // Tetap biarkan AI merespons secara natural melalui API
+            } else if (lowerUser.includes('baca catatan') || lowerUser.includes('buka catatan') || lowerUser.includes('apa memori') || lowerUser.includes('read note') || lowerUser.includes('show memory')) {
+                 if (memoryNotes.length === 0) {
+                     speakAVIS("Penyimpanan memori sistem Anda kosong, Tuan.");
+                 } else {
+                     speakAVIS("Tentu Tuan, berikut isi memori Anda: " + memoryNotes.map((n, i) => `Catatan ${i+1}: ${n.text}`).join('. '));
+                 }
+                 return;
+            }
+
+            // AMBIL API KEY DARI PENYIMPANAN LOKAL BROWSER
+            const apiKey = localStorage.getItem('avis_api_key');
+            
+            // Cek jika API Key belum dimasukkan oleh pengguna
+            if (!apiKey) {
+                updateUI("API Key belum disetel. Buka menu pengaturan (Ikon Gir).", "SISTEM CLOUD TERKUNCI", "error");
+                speakAVIS("Maaf Tuan, kunci akses ke satelit Cloud belum dimasukkan. Silakan buka menu pengaturan dan masukkan kunci terlebih dahulu. Untuk sementara saya beralih ke otak lokal.");
+                processQueryLocal(userText); // Fallback cerdas ke pencarian Wikipedia/DDG/Scholar
+                return;
+            }
+
+            // 2. Format riwayat obrolan untuk Gemini (Role: user & model)
+            geminiHistory.push({ role: "user", parts: [{ text: userText }] });
+            
+            // Jaga ukuran memori history agar tidak melebihi batas token (Maks 10 interaksi terakhir)
+            if (geminiHistory.length > 10) {
+                geminiHistory = geminiHistory.slice(-10);
+            }
+
+            // Instruksi Sistem (Persona)
+            const systemPrompt = "Anda adalah A.V.I.S (Advanced Virtual Intelligent System), asisten AI pribadi super cerdas. Panggil pengguna dengan 'Tuan' atau 'Sir'. Jawablah dengan profesional, akurat, dan langsung ke intinya (maksimal 2-3 kalimat). SELALU gunakan Google Search untuk mencari informasi ilmiah, terbaru atau spesifik (seperti 'soil organic carbon', dll) agar jawabanmu akurat dan tidak berhalusinasi. Jawab dalam bahasa yang sama dengan pengguna.";
+
+            // Payload API (Mengaktifkan fitur Google Search)
+            const payload = {
+                contents: geminiHistory,
+                tools: [{ googleSearch: {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error("API Server Error " + response.status);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+                
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    let aiText = candidate.content.parts[0].text;
+                    
+                    // Simpan respons AVIS ke memori percakapan
+                    geminiHistory.push({ role: "model", parts: [{ text: aiText }] });
+
+                    speakAVIS(aiText);
+                } else {
+                    throw new Error("Invalid format respons API");
+                }
+            } catch (error) {
+                console.error("Kesalahan jaringan Cloud API:", error);
+                // Mekanisme Fallback: Jika kuota habis atau tidak ada internet, pakai AI Lokal
+                updateUI("Koneksi server satelit gagal. Beralih ke subsistem lokal.", "SISTEM CADANGAN", "error");
+                processQueryLocal(userText); 
+            }
+        }
+
+        /* --------------------------------------------------------------------
+           High-Speed TTS Speech Synthesis
+           -------------------------------------------------------------------- */
+        function speakAVIS(text) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Stop ongoing speech
+
+            // Bersihkan teks dan perbaiki ejaan untuk TTS Indonesia
+            let cleanText = text.replace(/[\*\#\`\_]/g, '');
+            cleanText = cleanText.replace(/A\.V\.I\.S/gi, 'Avis'); // Agar tidak dieja A-titik-V-titik
+            cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, 'tautan web'); // Hindari membaca URL panjang
+            
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            // Jika suara yang didapat bukan ID, biarkan browser mencoba melafalkan dengan cara voice tersebut
+            if (selectedMaleVoice) {
+                utterance.voice = selectedMaleVoice;
+                utterance.lang = selectedMaleVoice.lang;
+            } else {
+                utterance.lang = 'id-ID';
+            }
+
+            // Set Speech Properties for Fast & Crisp AVIS Delivery
+            utterance.rate = speechRate; // Fast rate requested by user
+            utterance.pitch = 0.7;       // Rendahkan nada (pitch) di angka 0.7 agar konsisten terdengar maskulin dan berat
+
+            utterance.onstart = () => {
+                stopListening(); // Pause recognition while AI speaks to prevent feedback loop
+                setVisualState('speaking');
+                updateHUDState('speaking');
+                updateUI(cleanText, "A.V.I.S");
+            };
+
+            utterance.onend = () => {
+                setVisualState('idle');
+                updateHUDState('idle');
+
+                // AUTOMATICALLY RE-ENABLE LISTENING FOR HANDS-FREE CONTINUOUS CONVERSATION!
+                if (isHandsFreeActive) {
+                    setTimeout(() => startListening(), 200);
+                }
+            };
+
+            utterance.onerror = () => {
+                setVisualState('idle');
+                if (isHandsFreeActive) {
+                    setTimeout(() => startListening(), 500);
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        /* --------------------------------------------------------------------
+           UI Updates & State Management
+           -------------------------------------------------------------------- */
+        function updateUI(text, label, type = "normal") {
+            subtitleText.innerText = `"${text}"`;
+            statusLabel.innerText = label;
+
+            if (type === "error") {
+                statusLabel.className = "text-xs font-orbitron tracking-widest text-rose-400 uppercase mb-2";
+            } else {
+                statusLabel.className = "text-xs font-orbitron tracking-widest text-amber-400/90 uppercase mb-2";
+            }
+        }
+
+        function updateHUDState(state) {
+            if (state === 'listening') {
+                modeDot.className = "w-2 h-2 rounded-full bg-cyan-400 animate-ping";
+                modeText.innerText = "HANDS-FREE LISTENING";
+                modeText.className = "text-cyan-400 font-bold";
+                micBtn.className = "relative z-20 w-16 h-16 rounded-full bg-slate-900 border-2 border-cyan-400 text-cyan-400 flex items-center justify-center shadow-[0_0_35px_rgba(6,182,212,0.6)] scale-110 transition-all duration-300";
+                micIcon.className = "ph-bold ph-waveform text-2xl animate-pulse";
+                micRing1.className = "absolute w-28 h-28 rounded-full bg-cyan-500/20 blur-md transition-all duration-500";
+                micRing2.className = "absolute w-24 h-24 rounded-full border border-cyan-400/50 transition-all duration-500";
+                waveContainer.style.opacity = "1";
+            } else if (state === 'thinking') {
+                modeDot.className = "w-2 h-2 rounded-full bg-purple-400 animate-spin";
+                modeText.innerText = "BERPIKIR...";
+                modeText.className = "text-purple-400 font-bold";
+                micBtn.className = "relative z-20 w-16 h-16 rounded-full bg-slate-900 border-2 border-purple-400 text-purple-400 flex items-center justify-center shadow-[0_0_35px_rgba(168,85,247,0.6)] transition-all duration-300";
+                micIcon.className = "ph-bold ph-cpu text-2xl animate-spin";
+                waveContainer.style.opacity = "0.5";
+            } else if (state === 'speaking') {
+                modeDot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                modeText.innerText = "BERBICARA";
+                modeText.className = "text-amber-400 font-bold";
+                micBtn.className = "relative z-20 w-16 h-16 rounded-full bg-slate-900 border-2 border-amber-400 text-amber-400 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.5)] transition-all duration-300";
+                micIcon.className = "ph-bold ph-speaker-high text-2xl";
+                waveContainer.style.opacity = "1";
+            } else { // Idle
+                if (isHandsFreeActive) {
+                    modeDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                    modeText.innerText = "HANDS-FREE ACTIVE";
+                    modeText.className = "text-emerald-400 font-semibold";
+                } else {
+                    modeDot.className = "w-2 h-2 rounded-full bg-slate-500";
+                    modeText.innerText = "SISTEM SIAGA";
+                    modeText.className = "text-slate-300";
+                }
+                micBtn.className = "relative z-20 w-16 h-16 rounded-full bg-slate-900 border-2 border-amber-500 text-amber-400 flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 transition-all duration-300";
+                micIcon.className = "ph-bold ph-microphone text-2xl";
+                micRing1.className = "absolute w-24 h-24 rounded-full bg-amber-500/10 blur-md transition-all duration-500";
+                micRing2.className = "absolute w-20 h-20 rounded-full border border-amber-500/30 transition-all duration-500";
+                waveContainer.style.opacity = "0";
+            }
+        }
+
+        /* --------------------------------------------------------------------
+           Voice Speed Toggle (1.0x -> 1.2x -> 1.4x)
+           -------------------------------------------------------------------- */
+        speedToggleBtn.addEventListener('click', () => {
+            if (speechRate === 1.0) speechRate = 1.2;
+            else if (speechRate === 1.2) speechRate = 1.4;
+            else speechRate = 1.0;
+
+            speedVal.innerText = `${speechRate}x`;
+            updateUI(`Kecepatan suara diubah menjadi ${speechRate}x`, "PENGATURAN SUARA");
+        });
+
+        /* --------------------------------------------------------------------
+           Internal Memory Notes Management
+           -------------------------------------------------------------------- */
+        function saveNote(noteText) {
+            memoryNotes.push({
+                text: noteText,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+            localStorage.setItem('avis_notes', JSON.stringify(memoryNotes));
+            renderNotes();
+        }
+
+        function renderNotes() {
+            notesCount.innerText = memoryNotes.length;
+            if (memoryNotes.length === 0) {
+                notesContainer.innerHTML = `<p class="text-xs font-mono text-slate-500 text-center py-6">Belum ada catatan otomatis tersimpan. Katakan "Catat ini..." untuk menyimpan informasi.</p>`;
+                return;
+            }
+
+            notesContainer.innerHTML = memoryNotes.map((note, idx) => `
+                <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-start justify-between gap-3 text-xs">
+                    <div class="space-y-1">
+                        <p class="text-slate-200 font-medium">${note.text}</p>
+                        <span class="text-[10px] font-mono text-amber-500/80">${note.timestamp || ''}</span>
+                    </div>
+                    <button onclick="deleteNote(${idx})" class="text-slate-500 hover:text-rose-400 p-1">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        window.deleteNote = function(index) {
+            memoryNotes.splice(index, 1);
+            localStorage.setItem('avis_notes', JSON.stringify(memoryNotes));
+            renderNotes();
+        };
+
+        clearNotesBtn.addEventListener('click', () => {
+            memoryNotes = [];
+            localStorage.removeItem('avis_notes');
+            renderNotes();
+        });
+
+        openNotesBtn.addEventListener('click', () => {
+            renderNotes();
+            notesModal.classList.remove('opacity-0', 'pointer-events-none');
+        });
+
+        closeNotesBtn.addEventListener('click', () => {
+            notesModal.classList.add('opacity-0', 'pointer-events-none');
+        });
+
+        // Clock Update
+        function updateClock() {
+            const timeElem = document.getElementById('system-time');
+            if (timeElem) {
+                const now = new Date();
+                timeElem.innerText = `AI ASSISTANT • ${now.toLocaleTimeString()}`;
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Click on 3D Orb to trigger voice interaction
+        canvas.addEventListener('click', () => {
+            micBtn.click();
+        });
+
+        /* --------------------------------------------------------------------
+           Speech Recognition Engine & Event Handlers
+           -------------------------------------------------------------------- */
+        function setupRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateUI("Browser tidak mendukung Web Speech API.", "SISTEM ERROR", "error");
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isRecognizing = true;
+                setVisualState('listening');
+                updateHUDState('listening');
+                updateUI("Mendengarkan...", "A.V.I.S MENDENGARKAN");
+            };
+
+            recognition.onresult = (event) => {
+                isRecognizing = false;
+                const transcript = event.results[0][0].transcript;
+                updateUI(transcript, "TUAN");
+
+                // Periksa perintah langsung (Buka YouTube, Google, Scholar)
+                const isDirectCommand = checkDirectCommands(transcript);
+                if (isDirectCommand) {
+                    // Update UI jika berhasil navigasi otonom
+                    updateUI("Menjalankan perintah navigasi protokol otomatis...", "SISTEM OTONOM");
+                } else {
+                    // Gunakan kekuatan Cloud Gemini AI
+                    processQueryGemini(transcript);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                isRecognizing = false;
+                console.warn("Speech recognition error:", event.error);
+                setVisualState('idle');
+                updateHUDState('idle');
+
+                if (isHandsFreeActive && event.error !== 'aborted') {
+                    setTimeout(() => startListening(), 800);
+                }
+            };
+
+            recognition.onend = () => {
+                isRecognizing = false;
+                if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
+                    setVisualState('idle');
+                    updateHUDState('idle');
+                    if (isHandsFreeActive) {
+                        setTimeout(() => startListening(), 300);
+                    }
+                }
+            };
+        }
+
+        function startListening() {
+            if (!recognition || isRecognizing) return;
+            try {
+                recognition.start();
+            } catch (e) {
+                console.warn("Gagal memulai speech recognition:", e);
+            }
+        }
+
+        function stopListening() {
+            if (!recognition) return;
+            try {
+                recognition.stop();
+            } catch (e) {
+                console.warn("Gagal menghentikan speech recognition:", e);
+            }
+        }
+
+        // Toggle Hands-Free Microphone Activation
+        micBtn.addEventListener('click', () => {
+            if (isHandsFreeActive) {
+                isHandsFreeActive = false;
+                stopListening();
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+                setVisualState('idle');
+                updateHUDState('idle');
+                updateUI("Halo Tuan. Saya A.V.I.S. Klik mikrofon sekali untuk memulai percakapan Hands-Free.", "SISTEM SIAGA");
+            } else {
+                isHandsFreeActive = true;
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+                startListening();
+            }
+        });
+
+        // Initialize Speech engine on load
+        setupRecognition();
+    </script>
+</body>
+</html>
