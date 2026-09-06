@@ -174,6 +174,11 @@
                 <i class="ph-bold ph-notebook text-lg"></i>
             </button>
 
+            <!-- Tombol Download -->
+            <button id="download-btn" title="Unduh Source Code" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 flex items-center justify-center transition-all">
+                <i class="ph-bold ph-download-simple text-lg"></i>
+            </button>
+
             <!-- Pengaturan API (BARU) -->
             <button id="open-settings-btn" title="Pengaturan Sistem" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/50 flex items-center justify-center transition-all">
                 <i class="ph-bold ph-gear text-lg"></i>
@@ -219,6 +224,11 @@
         <p id="mic-hint" class="text-xs font-mono text-slate-400 tracking-wider">
             TEKAN SEKALI UNTUK SUPAYA BISA BERBICARA DENGAN AI
         </p>
+
+        <!-- Indikator Kecepatan Suara -->
+        <button id="speed-toggle-btn" class="mt-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400 font-mono hover:text-amber-400 transition-colors">
+            SPEED: <span id="speed-val">1.2x</span>
+        </button>
     </footer>
 
     <!-- SECRET / INTERNAL MEMORY NOTES DRAWER MODAL -->
@@ -1023,14 +1033,41 @@
         /* --------------------------------------------------------------------
            Voice Speed Toggle (1.0x -> 1.2x -> 1.4x)
            -------------------------------------------------------------------- */
-        speedToggleBtn.addEventListener('click', () => {
-            if (speechRate === 1.0) speechRate = 1.2;
-            else if (speechRate === 1.2) speechRate = 1.4;
-            else speechRate = 1.0;
+        if (speedToggleBtn) {
+            speedToggleBtn.addEventListener('click', () => {
+                if (speechRate === 1.0) speechRate = 1.2;
+                else if (speechRate === 1.2) speechRate = 1.4;
+                else speechRate = 1.0;
 
-            speedVal.innerText = `${speechRate}x`;
-            updateUI(`Kecepatan suara diubah menjadi ${speechRate}x`, "PENGATURAN SUARA");
-        });
+                if (speedVal) speedVal.innerText = `${speechRate}x`;
+                updateUI(`Kecepatan suara diubah menjadi ${speechRate}x`, "PENGATURAN SUARA");
+            });
+        }
+
+        /* --------------------------------------------------------------------
+           Download Source Code Feature
+           -------------------------------------------------------------------- */
+        const downloadBtn = document.getElementById('download-btn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                // Ekstrak keseluruhan HTML
+                const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'AVIS_AI_Assistant.html';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Pembersihan memory
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                updateUI("Source code berhasil diunduh.", "SISTEM");
+            });
+        }
 
         /* --------------------------------------------------------------------
            Internal Memory Notes Management
